@@ -126,4 +126,8 @@ export function useWallet(): WalletState {
 }
 
 /** The network the app talks to, for display. */
-export const networkLabel = config.networkPassphrase.includes("Test") ? "Testnet" : "Network";
+export const networkLabel = config.networkPassphrase.includes("Test")
+  ? "Testnet"
+  : config.networkPassphrase.includes("Public")
+    ? "Mainnet"
+    : "Custom network";

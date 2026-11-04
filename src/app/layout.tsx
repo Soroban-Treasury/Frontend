@@ -33,9 +33,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             {children}
           </main>
           <footer className="container site-footer">
-            <p>
-              Unaudited. Testnet only. Do not put money you can&rsquo;t afford to lose in a treasury here.
-            </p>
+            <p>Smart contracts carry risk. Read the security notes in the project README before moving funds.</p>
           </footer>
         </WalletProvider>
       </body>
