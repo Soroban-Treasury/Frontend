@@ -1,0 +1,38 @@
+{
+  "name": "treasury-app",
+  "version": "0.1.0",
+  "description": "Web app for Stellar Treasury: create a treasury, propose and approve payments, see history.",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@stellar/freighter-api": "^6.0.1",
+    "@stellar/stellar-sdk": "^17.4.0",
+    "next": "^16.4.5",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "treasury-sdk": "github:Soroban-Treasury/SDK"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "jsdom": "^26.1.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}
