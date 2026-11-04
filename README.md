@@ -5,7 +5,7 @@ Web app for Stellar Treasury. Create a treasury, propose a payment, approve it, 
 ## What you can do
 
 - **Connect** a Freighter wallet.
-- **Create a treasury:** pick owners, how many must approve, and a spending limit. Creating deploys the contract and sets the limit in two wallet approvals.
+- **Create a treasury:** pick owners, how many must approve, and a spending limit. Creating deploys the contract and sets the owners and limit in one transaction, so there is one wallet approval.
 - **Open** a treasury you already have by its contract id. Treasuries you open are remembered in this browser only.
 - **Propose** a payment (owners only), **approve** it, and **execute** it once enough owners approved. The page shows who approved and how long is left.
 - **History** of paid and expired proposals. With `treasury-api` configured it also shows an activity log.

@@ -227,7 +227,7 @@ export function CreateTreasuryForm({ address, wasmHash, defaultAsset, onCreate }
         </StatusMessage>
       ) : null}
       {busy ? (
-        <StatusMessage kind="info">Creating the treasury. Approve the two requests in your wallet.</StatusMessage>
+        <StatusMessage kind="info">Creating the treasury. Approve the request in your wallet.</StatusMessage>
       ) : null}
       {failure ? <StatusMessage kind="error">{failure}</StatusMessage> : null}
 
