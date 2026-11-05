@@ -23,6 +23,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <Link href="/" className="brand">
                 Stellar Treasury
               </Link>
+              <nav aria-label="Main">
+                <Link href="/demo">Live demo</Link>
+              </nav>
               <span className="badge badge-network">{networkLabel}</span>
               <div className="header-wallet">
                 <ConnectButton />

@@ -47,7 +47,7 @@ export function TreasuryOverview({
             <li key={l.asset}>
               {formatAmount(l.limit)} {assetLabel(l.asset)} per {period(l.period)}.{" "}
               <span className="muted">
-                {formatAmount(l.spent)} spent so far in this period.
+                {formatAmount(l.spent)} {assetLabel(l.asset)} spent so far in this period.
               </span>
             </li>
           ))}

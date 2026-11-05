@@ -489,3 +489,55 @@ progress {
     width: 100%;
   }
 }
+
+/* Demo page */
+.demo-steps {
+  list-style: none;
+  margin: var(--space-4) 0;
+  padding: 0;
+}
+
+.demo-step h2 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.demo-number {
+  color: var(--color-muted);
+}
+
+.demo-detail {
+  font-weight: 600;
+  margin: var(--space-2) 0;
+}
+
+.demo-running {
+  border-color: var(--color-accent);
+}
+
+.demo-failed {
+  border-color: var(--color-danger);
+}
+
+.demo-callout {
+  padding: var(--space-3) var(--space-4);
+}
+
+.badge-failed {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.header-inner nav a {
+  font-weight: 600;
+}
+
+a.button {
+  display: inline-block;
+  text-decoration: none;
+}
+
+a.button:hover {
+  color: var(--color-accent-contrast);
+}

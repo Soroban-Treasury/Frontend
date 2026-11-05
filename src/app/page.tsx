@@ -49,6 +49,10 @@ export default function Home() {
         limit.
       </p>
 
+      <p className="card demo-callout">
+        New here? <Link href="/demo">Watch the live demo</Link>. It runs the whole flow on the test network in about three minutes, with no wallet.
+      </p>
+
       <section aria-labelledby="saved-heading" className="card">
         <h2 id="saved-heading">Your treasuries</h2>
         {saved.length === 0 ? (

@@ -2,6 +2,10 @@
 
 Web app for Stellar Treasury. Create a treasury, propose a payment, approve it, execute it, and see history. Built with Next.js, talks to the chain through [`treasury-sdk`](https://github.com/Soroban-Treasury/SDK) and the Freighter wallet.
 
+## Live demo
+
+Open `/demo` (the **Live demo** link in the header) and press **Run the demo**. With no wallet, it makes two throwaway owners on the test network and runs the whole flow for real: create a 2-of-2 treasury with a spending limit, propose, a refused early payment, approve, pay, and a refused payment over the limit. It takes about three minutes because every step is a real transaction. The contract file it needs is bundled in `public/demo/`, so it needs no setup.
+
 ## What you can do
 
 - **Connect** a Freighter wallet.

@@ -24,17 +24,23 @@ const LABELS: Record<string, string> = {
 export function AuditLog({ treasuryId }: { treasuryId: string }) {
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [untracked, setUntracked] = useState(false);
 
   useEffect(() => {
     if (!config.apiUrl) return;
     let cancelled = false;
     fetch(`${config.apiUrl}/treasuries/${treasuryId}/audit-log?limit=50`)
       .then((res) => {
+        if (res.status === 404) {
+          // The API only serves treasuries it was set up to follow.
+          if (!cancelled) setUntracked(true);
+          return null;
+        }
         if (!res.ok) throw new Error(String(res.status));
-        return res.json() as Promise<{ entries: Entry[] }>;
+        return res.json() as Promise<{ entries: Entry[] } | null>;
       })
       .then((body) => {
-        if (!cancelled) setEntries(body.entries);
+        if (!cancelled && body) setEntries(body.entries);
       })
       .catch(() => {
         if (!cancelled) setFailed(true);
@@ -50,7 +56,8 @@ export function AuditLog({ treasuryId }: { treasuryId: string }) {
     <section className="card" aria-labelledby="audit-heading">
       <h2 id="audit-heading">Activity log</h2>
       {failed ? <p className="message message-error" role="alert">The activity log could not be loaded.</p> : null}
-      {!failed && entries === null ? <p className="muted">Loading…</p> : null}
+      {untracked ? <p className="muted">The activity log does not follow this treasury yet.</p> : null}
+      {!failed && !untracked && entries === null ? <p className="muted">Loading…</p> : null}
       {entries && entries.length === 0 ? <p className="empty">No activity recorded yet.</p> : null}
       {entries && entries.length > 0 ? (
         <ol className="plain-list">
