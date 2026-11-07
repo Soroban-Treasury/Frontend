@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # treasury-sdk is installed from the SDK repo on GitHub. While that repo is private, npm reads it
+      # over ssh with a read-only deploy key, kept in this repo as the secret SDK_DEPLOY_KEY.
+      - name: Let npm read the SDK repo
+        env:
+          SDK_DEPLOY_KEY: ${{ secrets.SDK_DEPLOY_KEY }}
+        run: |
+          if [ -z "$SDK_DEPLOY_KEY" ]; then
+            echo "No SDK_DEPLOY_KEY secret, so the SDK repo has to be public."
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SDK_DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
