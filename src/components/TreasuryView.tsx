@@ -2,7 +2,7 @@
 
 import { StrKey } from "@stellar/stellar-sdk";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AuditLog } from "@/components/AuditLog";
 import { ProposalForm } from "@/components/ProposalForm";
@@ -10,16 +10,17 @@ import type { ProposalInput } from "@/components/ProposalForm";
 import { ProposalList } from "@/components/ProposalList";
 import { StatusMessage } from "@/components/StatusMessage";
 import { TreasuryOverview } from "@/components/TreasuryOverview";
+import { config } from "@/lib/config";
 import { assetLabel, errorMessage, makeClient, proposalState } from "@/lib/treasury";
 import { useTreasuryData } from "@/lib/useTreasuryData";
 import { useWallet } from "@/lib/wallet";
 
-export default function TreasuryPage() {
-  const params = useParams<{ id: string }>();
-  const id = decodeURIComponent(params.id ?? "");
+/** One treasury: overview, proposals, history and activity. The contract id comes from `?id=`. */
+export function TreasuryView() {
+  const id = (useSearchParams().get("id") ?? "").trim();
   const valid = StrKey.isValidContract(id);
 
-  const { address, signer } = useWallet();
+  const { address, signer, networkProblem } = useWallet();
   const { data, error, loading, reload } = useTreasuryData(valid ? id : null);
 
   const [busyId, setBusyId] = useState<bigint | null>(null);
@@ -61,7 +62,9 @@ export default function TreasuryPage() {
     return (
       <>
         <h1>Treasury not found</h1>
-        <StatusMessage kind="error">That is not a valid treasury contract id.</StatusMessage>
+        <StatusMessage kind="error">
+          {id ? "That is not a valid treasury contract id." : "No treasury was given. Open one from the home page."}
+        </StatusMessage>
         <p>
           <Link href="/">Back to your treasuries</Link>
         </p>
@@ -103,7 +106,17 @@ export default function TreasuryPage() {
         <Link href="/">&larr; All treasuries</Link>
       </p>
       <h1>Treasury</h1>
-      <p className="muted contract-id">{id}</p>
+      <p className="muted contract-id">
+        {id}
+        {config.explorerUrl ? (
+          <>
+            {" "}
+            <a href={`${config.explorerUrl}/contract/${id}`} target="_blank" rel="noreferrer">
+              View on Stellar Expert<span className="visually-hidden"> (opens in a new tab)</span>
+            </a>
+          </>
+        ) : null}
+      </p>
 
       {loading ? <p role="status">Loading treasury…</p> : null}
       {error ? (
@@ -121,9 +134,13 @@ export default function TreasuryPage() {
 
           <ProposalForm
             assets={assets}
-            canPropose={isOwner}
+            canPropose={isOwner && !networkProblem}
             reason={
-              !address ? "Connect your wallet to propose a payment." : "Only owners of this treasury can propose payments."
+              !address
+                ? "Connect your wallet to propose a payment."
+                : networkProblem
+                  ? networkProblem
+                  : "Only owners of this treasury can propose payments."
             }
             onSubmit={propose}
           />

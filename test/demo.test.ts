@@ -96,12 +96,19 @@ describe("runDemo", () => {
     expect(seen).toEqual(STEP_DEFINITIONS.map((s) => s.id));
   });
 
-  it("skips the upload when the contract hash is already known", async () => {
+  it("skips the upload when the network already has the contract code", async () => {
     const hash = "cd".repeat(32);
-    const { d } = deps({ knownWasmHash: hash });
+    const { d } = deps({ findWasmHash: async () => hash });
     await runDemo(d, () => {});
     expect(d.uploadWasm).not.toHaveBeenCalled();
     expect(vi.mocked(d.createTreasury).mock.calls[0]![0].wasmHash).toBe(hash);
+  });
+
+  it("uploads the contract code when the network does not have it", async () => {
+    const { d } = deps({ findWasmHash: async () => null });
+    await runDemo(d, () => {});
+    expect(d.uploadWasm).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(d.createTreasury).mock.calls[0]![0].wasmHash).toBe("ab".repeat(32));
   });
 
   it("links to the explorer for the contract and the transactions", async () => {

@@ -1,0 +1,71 @@
+name: Deploy to GitHub Pages
+
+# Builds the static site (out/) and publishes it at https://soroban-treasury.github.io/Frontend/.
+#
+# On GitHub's free plan, Pages only works for public repositories, so this does nothing while the
+# repository is private. Once it is public, turn Pages on once: Settings -> Pages -> Source: GitHub Actions.
+#
+# Optional repository variables (Settings -> Secrets and variables -> Actions -> Variables):
+#   NEXT_PUBLIC_NETWORK   testnet (default) or mainnet
+#   NEXT_PUBLIC_RPC_URL   your RPC provider, recommended for mainnet
+#   NEXT_PUBLIC_API_URL   a running treasury-api, for the activity log
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # Same as in ci.yml: needed only while the SDK repo is private.
+      - name: Let npm read the SDK repo
+        env:
+          SDK_DEPLOY_KEY: ${{ secrets.SDK_DEPLOY_KEY }}
+        run: |
+          if [ -z "$SDK_DEPLOY_KEY" ]; then exit 0; fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SDK_DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+      - id: pages
+        uses: actions/configure-pages@v5
+      - run: npm ci
+      - name: Build
+        run: npm run build
+        env:
+          # The site lives under /Frontend, so links and files need that prefix.
+          NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          NEXT_PUBLIC_NETWORK: ${{ vars.NEXT_PUBLIC_NETWORK }}
+          NEXT_PUBLIC_RPC_URL: ${{ vars.NEXT_PUBLIC_RPC_URL }}
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

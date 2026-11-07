@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ConnectButton } from "@/components/ConnectButton";
+import { WalletNotice } from "@/components/WalletNotice";
 import { networkLabel, WalletProvider } from "@/lib/wallet";
 import "./globals.css";
 
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               </div>
             </div>
           </header>
+          <WalletNotice />
           <main id="main" className="container">
             {children}
           </main>

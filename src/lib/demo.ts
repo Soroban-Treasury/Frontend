@@ -1,7 +1,9 @@
-import { Address, BASE_FEE, Contract, Keypair, Operation, TransactionBuilder, nativeToScVal, rpc, scValToNative } from "@stellar/stellar-sdk";
+import { Address, BASE_FEE, Contract, Keypair, TransactionBuilder, nativeToScVal, rpc } from "@stellar/stellar-sdk";
 import { NotEnoughApprovalsError, OverLimitError, TreasuryClient, keypairSigner } from "treasury-sdk";
 import type { LimitInit, Proposal, Signer } from "treasury-sdk";
-import { config } from "./config";
+import { BUNDLED_WASM_HASH, NETWORKS, config } from "./config";
+import { isCodeOnNetwork, loadBundledCode, uploadCode } from "./contractCode";
+import type { CodeServer } from "./contractCode";
 import { nativeAssetId } from "./treasury";
 
 /** One XLM in the smallest unit. */
@@ -31,7 +33,7 @@ export const STEP_DEFINITIONS: Pick<DemoStep, "id" | "title" | "why">[] = [
   {
     id: "upload",
     title: "Put the contract on the network",
-    why: "The treasury's code (about 13 KB) is uploaded once. Its hash identifies exactly which code a treasury runs.",
+    why: "The treasury's code (about 13 KB) is uploaded once per network, then every treasury reuses it. Its hash identifies exactly which code a treasury runs.",
   },
   {
     id: "create",
@@ -82,7 +84,9 @@ export interface DemoClient {
 
 export interface DemoDeps {
   fundAccount(address: string): Promise<void>;
-  /** Upload the contract and return its hash. Not called when a hash is already known. */
+  /** Hash of the contract code if the network already has it, so the upload can be skipped. */
+  findWasmHash?(): Promise<string | null>;
+  /** Upload the contract and return its hash. Not called when the network already has it. */
   uploadWasm(source: Keypair): Promise<string>;
   createTreasury(args: {
     wasmHash: string;
@@ -93,8 +97,6 @@ export interface DemoDeps {
   }): Promise<DemoClient>;
   fundTreasury(from: Keypair, treasuryId: string, amount: bigint): Promise<void>;
   clientFor(treasuryId: string, signer: Signer): DemoClient;
-  /** Hash of an already uploaded contract, if the app is configured with one. */
-  knownWasmHash?: string;
   asset: string;
   explorer: string;
 }
@@ -162,9 +164,10 @@ export async function runDemo(
   });
 
   const wasmHash = await step("upload", async (s) => {
-    if (deps.knownWasmHash) {
-      s.detail = `Already on the network. Code hash ${short(deps.knownWasmHash)}.`;
-      return deps.knownWasmHash;
+    const known = deps.findWasmHash ? await deps.findWasmHash() : null;
+    if (known) {
+      s.detail = `Already on the network, so nothing to upload. Code hash ${short(known)}.`;
+      return known;
     }
     const hash = await deps.uploadWasm(owner1);
     s.detail = `Code hash ${short(hash)}.`;
@@ -234,7 +237,7 @@ export async function runDemo(
 
 export const DEMO_AVAILABLE = config.networkPassphrase.includes("Test");
 
-async function sendTransaction(server: rpc.Server, source: Keypair, operation: ReturnType<typeof Operation.uploadContractWasm>) {
+async function sendTransaction(server: rpc.Server, source: Keypair, operation: ReturnType<Contract["call"]>) {
   const account = await server.getAccount(source.publicKey());
   const tx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: config.networkPassphrase })
     .addOperation(operation)
@@ -262,8 +265,11 @@ export function liveDeps(): DemoDeps {
 
   return {
     asset: nativeAssetId(),
-    explorer: "https://stellar.expert/explorer/testnet",
-    knownWasmHash: config.wasmHash || undefined,
+    explorer: config.explorerUrl ?? NETWORKS.testnet.explorerUrl,
+
+    async findWasmHash() {
+      return (await isCodeOnNetwork(server, config.wasmHash)) ? config.wasmHash : null;
+    },
 
     async fundAccount(address) {
       const res = await fetch(`https://friendbot.stellar.org/?addr=${encodeURIComponent(address)}`);
@@ -271,13 +277,9 @@ export function liveDeps(): DemoDeps {
     },
 
     async uploadWasm(source) {
-      const res = await fetch("/demo/treasury_contract.wasm");
-      if (!res.ok) throw new Error("Could not load the contract file.");
-      const wasm = new Uint8Array(await res.arrayBuffer());
-      const done = await sendTransaction(server, source, Operation.uploadContractWasm({ wasm: wasm as unknown as Buffer }));
-      if (!done.returnValue) throw new Error("The upload returned no hash.");
-      const hash = scValToNative(done.returnValue) as Uint8Array;
-      return Array.from(hash, (b) => b.toString(16).padStart(2, "0")).join("");
+      const wasm = await loadBundledCode();
+      await uploadCode(server as unknown as CodeServer, keypairSigner(source), wasm, config.networkPassphrase);
+      return BUNDLED_WASM_HASH;
     },
 
     async createTreasury(args) {
@@ -295,7 +297,7 @@ export function liveDeps(): DemoDeps {
         new Address(treasuryId).toScVal(),
         nativeToScVal(amount, { type: "i128" }),
       );
-      await sendTransaction(server, from, call as never);
+      await sendTransaction(server, from, call);
     },
 
     clientFor: client,

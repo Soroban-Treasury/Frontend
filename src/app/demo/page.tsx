@@ -5,6 +5,7 @@ import { useState } from "react";
 import { StatusMessage } from "@/components/StatusMessage";
 import { DEMO_AVAILABLE, STEP_DEFINITIONS, liveDeps, runDemo } from "@/lib/demo";
 import type { DemoStep } from "@/lib/demo";
+import { treasuryHref } from "@/lib/config";
 import { saveTreasury } from "@/lib/storage";
 
 const STATUS_TEXT: Record<DemoStep["status"], string> = {
@@ -100,7 +101,7 @@ export default function DemoPage() {
             moves at all. Everything you just saw is on the public test network.
           </p>
           <p>
-            <Link href={`/treasury/${treasuryId}`} className="button">
+            <Link href={treasuryHref(treasuryId)} className="button">
               Open this treasury
             </Link>
           </p>

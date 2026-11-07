@@ -7,7 +7,8 @@ import { CreateTreasuryForm } from "@/components/CreateTreasuryForm";
 import type { CreateParams } from "@/components/CreateTreasuryForm";
 import { OpenTreasuryForm } from "@/components/OpenTreasuryForm";
 import { shortAddress } from "@/lib/amount";
-import { config } from "@/lib/config";
+import { config, treasuryHref } from "@/lib/config";
+import { ensureContractCode } from "@/lib/contractCode";
 import { loadSaved, removeTreasury, saveTreasury } from "@/lib/storage";
 import type { SavedTreasury } from "@/lib/storage";
 import { nativeAssetId } from "@/lib/treasury";
@@ -16,7 +17,7 @@ import { TreasuryClient } from "treasury-sdk";
 
 export default function Home() {
   const router = useRouter();
-  const { address, signer } = useWallet();
+  const { address, signer, networkProblem } = useWallet();
   const [saved, setSaved] = useState<SavedTreasury[]>([]);
 
   // Read from storage after mount so the first render matches the server.
@@ -24,15 +25,25 @@ export default function Home() {
 
   function open(id: string, name: string) {
     setSaved(saveTreasury({ id, name }));
-    router.push(`/treasury/${id}`);
+    router.push(treasuryHref(id));
   }
 
-  async function create(params: CreateParams) {
+  async function create(params: CreateParams, report: (progress: string) => void) {
     if (!signer) throw new Error("Connect your wallet first.");
+    if (networkProblem) throw new Error(networkProblem);
+    report("Checking that the treasury contract code is on the network…");
+    const wasmHash = await ensureContractCode({
+      signer,
+      onUpload: () =>
+        report(
+          "Step 1 of 2: uploading the treasury contract code. This is needed once per network. Approve it in your wallet.",
+        ),
+    });
+    report("Creating the treasury. Approve the request in your wallet.");
     const treasury = await TreasuryClient.create({
       rpcUrl: config.rpcUrl,
       networkPassphrase: config.networkPassphrase,
-      wasmHash: config.wasmHash,
+      wasmHash,
       signer,
       owners: params.owners,
       threshold: params.threshold,
@@ -61,7 +72,7 @@ export default function Home() {
           <ul className="plain-list saved-list">
             {saved.map((t) => (
               <li key={t.id}>
-                <Link href={`/treasury/${t.id}`}>
+                <Link href={treasuryHref(t.id)}>
                   {t.name} <span className="muted">({shortAddress(t.id, 6)})</span>
                 </Link>
                 <button
@@ -81,7 +92,7 @@ export default function Home() {
       <div className="grid">
         <CreateTreasuryForm
           address={address}
-          wasmHash={config.wasmHash}
+          blockedReason={networkProblem}
           defaultAsset={nativeAssetId()}
           onCreate={create}
         />

@@ -6,9 +6,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 4000",
     "build": "next build",
-    "start": "next start",
+    "start": "node scripts/serve.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

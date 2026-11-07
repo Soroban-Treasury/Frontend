@@ -9,5 +9,7 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     include: ["test/**/*.test.{ts,tsx}"],
     globals: false,
+    // Typing whole Stellar addresses with user-event takes a few seconds on a slow machine.
+    testTimeout: 30_000,
   },
 });

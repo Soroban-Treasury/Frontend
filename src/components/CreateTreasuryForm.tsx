@@ -79,13 +79,14 @@ export function validateCreate(values: CreateValues): { params: CreateParams } |
 interface Props {
   /** The connected account. It is filled in as the first owner. */
   address: string | null;
-  /** Hex hash of the contract wasm. Without it treasuries can't be created here. */
-  wasmHash: string;
+  /** Why creating is not possible right now (for example the wallet is on another network), or null. */
+  blockedReason?: string | null;
   defaultAsset: string;
-  onCreate: (params: CreateParams) => Promise<void>;
+  /** Create the treasury. `report` updates the progress message while it works. */
+  onCreate: (params: CreateParams, report: (progress: string) => void) => Promise<void>;
 }
 
-export function CreateTreasuryForm({ address, wasmHash, defaultAsset, onCreate }: Props) {
+export function CreateTreasuryForm({ address, blockedReason = null, defaultAsset, onCreate }: Props) {
   const [values, setValues] = useState<CreateValues>({
     name: "",
     owners: "",
@@ -96,6 +97,7 @@ export function CreateTreasuryForm({ address, wasmHash, defaultAsset, onCreate }
   });
   const [errors, setErrors] = useState<CreateErrors>({});
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState("Creating the treasury. Approve the request in your wallet.");
   const [failure, setFailure] = useState<string | null>(null);
 
   // Start the owners list with the connected account.
@@ -116,8 +118,9 @@ export function CreateTreasuryForm({ address, wasmHash, defaultAsset, onCreate }
     }
     setErrors({});
     setBusy(true);
+    setProgress("Creating the treasury. Approve the request in your wallet.");
     try {
-      await onCreate(result.params);
+      await onCreate(result.params, setProgress);
     } catch (e) {
       setFailure(errorMessage(e));
     } finally {
@@ -126,7 +129,6 @@ export function CreateTreasuryForm({ address, wasmHash, defaultAsset, onCreate }
   }
 
   const needsWallet = !address;
-  const needsWasm = !wasmHash;
 
   const field = (key: keyof CreateValues) => ({
     "aria-invalid": errors[key] ? (true as const) : undefined,
@@ -221,17 +223,11 @@ export function CreateTreasuryForm({ address, wasmHash, defaultAsset, onCreate }
       </fieldset>
 
       {needsWallet ? <StatusMessage kind="info">Connect your wallet to create a treasury.</StatusMessage> : null}
-      {needsWasm ? (
-        <StatusMessage kind="error">
-          This app isn&rsquo;t set up to create treasuries yet: NEXT_PUBLIC_WASM_HASH is missing.
-        </StatusMessage>
-      ) : null}
-      {busy ? (
-        <StatusMessage kind="info">Creating the treasury. Approve the request in your wallet.</StatusMessage>
-      ) : null}
+      {!needsWallet && blockedReason ? <StatusMessage kind="error">{blockedReason}</StatusMessage> : null}
+      {busy ? <StatusMessage kind="info">{progress}</StatusMessage> : null}
       {failure ? <StatusMessage kind="error">{failure}</StatusMessage> : null}
 
-      <button type="submit" className="button" disabled={busy || needsWallet || needsWasm}>
+      <button type="submit" className="button" disabled={busy || needsWallet || Boolean(blockedReason)}>
         {busy ? "Creating…" : "Create treasury"}
       </button>
     </form>
