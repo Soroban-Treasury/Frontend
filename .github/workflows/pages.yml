@@ -36,15 +36,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      # Same as in ci.yml: needed only while the SDK repo is private.
-      - name: Let npm read the SDK repo
-        env:
-          SDK_DEPLOY_KEY: ${{ secrets.SDK_DEPLOY_KEY }}
-        run: |
-          if [ -z "$SDK_DEPLOY_KEY" ]; then exit 0; fi
-          mkdir -p ~/.ssh
-          printf '%s\n' "$SDK_DEPLOY_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
+      # Same as in ci.yml: the lock file's ssh address for the SDK repo, fetched over https.
+      - name: Fetch the SDK repo over https
+        run: git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
       - id: pages
         uses: actions/configure-pages@v6
       - run: npm ci

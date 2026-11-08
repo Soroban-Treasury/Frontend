@@ -42,7 +42,7 @@ When the contract changes, build it (`sh scripts/build.sh` in the contract repo)
 
 ### The SDK dependency
 
-`treasury-sdk` is installed from its GitHub repo (`github:Soroban-Treasury/SDK`), which builds it on install. While that repo is private, `npm install` needs git access to it (for example a logged-in `gh`, or an ssh key with access). CI uses a read-only deploy key, the secret `SDK_DEPLOY_KEY`. Until the SDK is published to npm, that is the install path.
+`treasury-sdk` is installed from its GitHub repo (`github:Soroban-Treasury/SDK`), which builds it on install. The lock file records the repo by its ssh address, so without an ssh key set up for GitHub, run `git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"` once and npm fetches it over https. CI does the same. Until the SDK is published to npm, that is the install path.
 
 ## Host it
 
@@ -55,7 +55,7 @@ npm start          # serves out/ at http://localhost:4000
 
 Any static host can serve `out/`. Treasury pages are `/treasury/?id=<contract id>`, so the host needs no routing rules. Older `/treasury/<contract id>` links still work, because the 404 page forwards them.
 
-GitHub Pages: [.github/workflows/pages.yml](.github/workflows/pages.yml) builds with the right base path and deploys on every push to `main`. On the free plan it needs this repo to be public, and Pages turned on once under Settings, Pages, Source: GitHub Actions. Set the repository variables named in that file to point it at mainnet or at a treasury-api.
+GitHub Pages: [.github/workflows/pages.yml](.github/workflows/pages.yml) builds with the right base path and deploys on every push to `main`, to https://soroban-treasury.github.io/Frontend/. Set the repository variables named in that file to point it at mainnet or at a treasury-api.
 
 ## Accessibility
 

@@ -19,19 +19,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      # treasury-sdk is installed from the SDK repo on GitHub. While that repo is private, npm reads it
-      # over ssh with a read-only deploy key, kept in this repo as the secret SDK_DEPLOY_KEY.
-      - name: Let npm read the SDK repo
-        env:
-          SDK_DEPLOY_KEY: ${{ secrets.SDK_DEPLOY_KEY }}
-        run: |
-          if [ -z "$SDK_DEPLOY_KEY" ]; then
-            echo "No SDK_DEPLOY_KEY secret, so the SDK repo has to be public."
-            exit 0
-          fi
-          mkdir -p ~/.ssh
-          printf '%s\n' "$SDK_DEPLOY_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
+      # treasury-sdk is installed from the public SDK repo on GitHub. The lock file records it by its
+      # ssh address, which needs a key even for public repos, so fetch it over https instead.
+      - name: Fetch the SDK repo over https
+        run: git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
