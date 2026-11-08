@@ -1,5 +1,5 @@
 import { Address, BASE_FEE, Contract, Keypair, TransactionBuilder, nativeToScVal, rpc } from "@stellar/stellar-sdk";
-import { NotEnoughApprovalsError, OverLimitError, TreasuryClient, keypairSigner } from "treasury-sdk";
+import { NotEnoughApprovalsError, OverLimitError, TreasuryClient, keypairSigner, transactionDeadline } from "treasury-sdk";
 import type { LimitInit, Proposal, Signer } from "treasury-sdk";
 import { BUNDLED_WASM_HASH, NETWORKS, config } from "./config";
 import { isCodeOnNetwork, loadBundledCode, uploadCode } from "./contractCode";
@@ -238,10 +238,16 @@ export async function runDemo(
 export const DEMO_AVAILABLE = config.networkPassphrase.includes("Test");
 
 async function sendTransaction(server: rpc.Server, source: Keypair, operation: ReturnType<Contract["call"]>) {
-  const account = await server.getAccount(source.publicKey());
-  const tx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: config.networkPassphrase })
+  const [account, maxTime] = await Promise.all([
+    server.getAccount(source.publicKey()),
+    transactionDeadline(server, 60),
+  ]);
+  const tx = new TransactionBuilder(account, {
+    fee: BASE_FEE,
+    networkPassphrase: config.networkPassphrase,
+    timebounds: { minTime: 0, maxTime },
+  })
     .addOperation(operation)
-    .setTimeout(60)
     .build();
   const prepared = await server.prepareTransaction(tx);
   prepared.sign(source);

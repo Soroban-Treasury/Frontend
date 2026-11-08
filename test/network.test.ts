@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { Account, Keypair, Networks, TransactionBuilder, xdr } from "@stellar/stellar-sdk";
+import { Account, Keypair, Networks, Transaction, TransactionBuilder, xdr } from "@stellar/stellar-sdk";
 import { keypairSigner } from "treasury-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { BUNDLED_WASM_HASH, BUNDLED_WASM_PATH, publicUrl, resolveNetwork, treasuryHref } from "@/lib/config";
@@ -155,5 +155,20 @@ describe("contract code", () => {
     await expect(
       ensureContractCode({ signer, server, networkPassphrase: Networks.TESTNET, fetcher: okFetch }),
     ).rejects.toThrow(/ended as FAILED/);
+  });
+
+  it("lets the upload expire by the network's clock, even when this computer's clock is wrong", async () => {
+    const networkNow = 1_800_000_000;
+    // This computer thinks it is an hour and a quarter earlier than the network does.
+    const clock = vi.spyOn(Date, "now").mockReturnValue((networkNow - 75 * 60) * 1000);
+    try {
+      const { server, sent, signer } = fakeServer(false);
+      server.getLatestLedger = async () => ({ sequence: 1, closeTime: String(networkNow) });
+      await ensureContractCode({ signer, server, networkPassphrase: Networks.TESTNET, fetcher: okFetch });
+      const tx = TransactionBuilder.fromXDR(sent[0]!, Networks.TESTNET) as Transaction;
+      expect(Number(tx.timeBounds?.maxTime)).toBe(networkNow + 300);
+    } finally {
+      clock.mockRestore();
+    }
   });
 });

@@ -1,4 +1,5 @@
 import { BASE_FEE, Operation, TransactionBuilder, hash, rpc, xdr } from "@stellar/stellar-sdk";
+import { transactionDeadline } from "treasury-sdk";
 import type { Signer } from "treasury-sdk";
 import { BUNDLED_WASM_HASH, BUNDLED_WASM_PATH, config, publicUrl } from "./config";
 
@@ -25,6 +26,8 @@ export interface CodeServer {
   prepareTransaction(tx: ReturnType<TransactionBuilder["build"]>): Promise<{ toXDR(): string }>;
   sendTransaction(tx: ReturnType<typeof TransactionBuilder.fromXDR>): Promise<{ status: string; hash: string }>;
   pollTransaction(hash: string, opts?: { attempts?: number }): Promise<{ status: string }>;
+  /** Lets the upload expire by the network's clock rather than this computer's. */
+  getLatestLedger?(): Promise<{ sequence: number; closeTime?: string | number }>;
 }
 
 /** True when contract code with this hash is on the network. */
@@ -52,10 +55,13 @@ export async function uploadCode(
   wasm: Uint8Array,
   networkPassphrase: string,
 ): Promise<void> {
-  const account = await server.getAccount(signer.publicKey);
-  const tx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase })
+  // Five minutes leaves time to read and approve the request in the wallet.
+  const [account, maxTime] = await Promise.all([
+    server.getAccount(signer.publicKey),
+    transactionDeadline(server, 300),
+  ]);
+  const tx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase, timebounds: { minTime: 0, maxTime } })
     .addOperation(Operation.uploadContractWasm({ wasm: wasm as never }))
-    .setTimeout(300)
     .build();
   const prepared = await server.prepareTransaction(tx);
   const signedXdr = await signer.signTransaction(prepared.toXDR(), { networkPassphrase });
