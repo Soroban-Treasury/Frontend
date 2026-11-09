@@ -149,32 +149,40 @@ export function TreasuryView() {
             <h2 id="open-proposals-heading">Open proposals</h2>
             {notice ? <StatusMessage kind="success">{notice}</StatusMessage> : null}
             {actionError ? <StatusMessage kind="error">{actionError}</StatusMessage> : null}
-            <ProposalList
-              proposals={current}
-              threshold={threshold}
-              address={address}
-              owners={owners}
-              nowSeconds={now}
-              busyId={busyId}
-              onApprove={(pid) => void act(pid, "approve")}
-              onExecute={(pid) => void act(pid, "execute")}
-              emptyText="Nothing waiting for approval."
-            />
+            {data.proposals === null ? (
+              error ? null : <p role="status">Loading proposals…</p>
+            ) : (
+              <ProposalList
+                proposals={current}
+                threshold={threshold}
+                address={address}
+                owners={owners}
+                nowSeconds={now}
+                busyId={busyId}
+                onApprove={(pid) => void act(pid, "approve")}
+                onExecute={(pid) => void act(pid, "execute")}
+                emptyText="Nothing waiting for approval."
+              />
+            )}
           </section>
 
           <section aria-labelledby="history-heading">
             <h2 id="history-heading">History</h2>
-            <ProposalList
-              proposals={past}
-              threshold={threshold}
-              address={address}
-              owners={owners}
-              nowSeconds={now}
-              busyId={null}
-              onApprove={() => undefined}
-              onExecute={() => undefined}
-              emptyText="No payments made or expired yet."
-            />
+            {data.proposals === null ? (
+              error ? null : <p className="muted">Loading history…</p>
+            ) : (
+              <ProposalList
+                proposals={past}
+                threshold={threshold}
+                address={address}
+                owners={owners}
+                nowSeconds={now}
+                busyId={null}
+                onApprove={() => undefined}
+                onExecute={() => undefined}
+                emptyText="No payments made or expired yet."
+              />
+            )}
           </section>
 
           <AuditLog treasuryId={id} />

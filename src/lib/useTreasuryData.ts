@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Config, Proposal } from "treasury-sdk";
 import { errorMessage, makeClient } from "./treasury";
 
@@ -16,8 +16,8 @@ export interface LimitView {
 export interface TreasuryData {
   config: Config;
   limits: LimitView[];
-  /** Newest first. */
-  proposals: Proposal[];
+  /** Newest first. `null` while they are still loading. */
+  proposals: Proposal[] | null;
 }
 
 export interface TreasuryDataState {
@@ -27,28 +27,41 @@ export interface TreasuryDataState {
   reload: () => Promise<void>;
 }
 
-/** Read a treasury from the chain: owners, limits and recent proposals. */
+interface Overview {
+  config: Config;
+  limits: LimitView[];
+}
+
+/**
+ * Read a treasury from the chain: owners, limits and recent proposals.
+ *
+ * Every read is a simulation on the RPC, which can take seconds on a public RPC, so the
+ * overview and the proposals load side by side and each shows up as soon as it arrives.
+ */
 export function useTreasuryData(contractId: string | null): TreasuryDataState {
-  const [data, setData] = useState<TreasuryData | null>(null);
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [proposals, setProposals] = useState<Proposal[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(contractId !== null);
 
   const load = useCallback(async () => {
     if (!contractId) return;
-    try {
-      const client = makeClient(contractId);
-      const [config, assets, proposals] = await Promise.all([
-        client.getConfig(),
-        client.getPolicyAssets(),
-        client.listProposals({ limit: 50 }),
-      ]);
+    const client = makeClient(contractId);
+
+    const loadOverview = async () => {
+      const [config, assets] = await Promise.all([client.getConfig(), client.getPolicyAssets()]);
       const limits = await Promise.all(
         assets.map(async (asset): Promise<LimitView> => {
           const [{ limit, period }, spent] = await Promise.all([client.getSpendLimit(asset), client.getSpent(asset)]);
           return { asset, limit, period, spent };
         }),
       );
-      setData({ config, limits, proposals });
+      setOverview({ config, limits });
+    };
+    const loadProposals = async () => setProposals(await client.listProposals({ limit: 50 }));
+
+    try {
+      await Promise.all([loadOverview(), loadProposals()]);
       setError(null);
     } catch (e) {
       setError(errorMessage(e));
@@ -58,9 +71,13 @@ export function useTreasuryData(contractId: string | null): TreasuryDataState {
   }, [contractId]);
 
   useEffect(() => {
+    setOverview(null);
+    setProposals(null);
+    setError(null);
     setLoading(contractId !== null);
     void load();
   }, [contractId, load]);
 
-  return { data, error, loading, reload: load };
+  const data = useMemo(() => (overview ? { ...overview, proposals } : null), [overview, proposals]);
+  return { data, error, loading: loading && overview === null, reload: load };
 }
