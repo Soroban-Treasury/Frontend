@@ -1,0 +1,38 @@
+
+== Fund two throwaway accounts
+alice GCQPY7UIQRWXWYSYAL3GQM65PNG7QRZPZCEIN6JX3VURDLA4ZX4SI4SB
+bob   GDTIXS26NAQYHRQ5BHAAX3S2UQRQW6XAAUF2MXRDZWGIMLMPJXGSHECQ
+
+== Upload contract wasm
+wasm hash 4c480639915a0e0a805420c9e4188f350773f34c54025710d8185f1c9d48a369
+
+== Create treasury (owners: alice, bob; threshold 2; limit 50 XLM per hour)
+treasury CC5DZN4MQRTYGWPEF3LZD7FMRK22Y6IIZOUWHTE6FNLZOOKALGAI6H6G
+config   {
+  owners: [
+    'GCQPY7UIQRWXWYSYAL3GQM65PNG7QRZPZCEIN6JX3VURDLA4ZX4SI4SB',
+    'GDTIXS26NAQYHRQ5BHAAX3S2UQRQW6XAAUF2MXRDZWGIMLMPJXGSHECQ'
+  ],
+  threshold: 2
+}
+
+== Fund the treasury with 100 XLM
+
+== Check the starting limit
+limit    { limit: 500000000n, period: 3600n }
+assets   [ 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC' ]
+
+== Propose 10 XLM to bob as alice, approve as bob, execute as alice (2 of 2)
+proposal id 0n
+1 of 2 approvals, execute refused: Not enough owners have approved.
+approvals  2
+spent this period (stroops) 100000000n
+
+== Over the limit is refused before signing
+OverLimitError: The payment would exceed the spending limit for this period.
+
+== List proposals
+[ { id: 0n, amount: 100000000n, executed: true } ]
+
+All good.
+TREASURY_IDS=CC5DZN4MQRTYGWPEF3LZD7FMRK22Y6IIZOUWHTE6FNLZOOKALGAI6H6G
