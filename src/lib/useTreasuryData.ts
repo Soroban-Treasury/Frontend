@@ -1,7 +1,9 @@
 "use client";
 
+import { Address, rpc, scValToNative, xdr } from "@stellar/stellar-sdk";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Config, Proposal } from "treasury-sdk";
+import { config as appConfig } from "./config";
 import { errorMessage, makeClient } from "./treasury";
 
 export interface LimitView {
@@ -11,6 +13,29 @@ export interface LimitView {
   period: bigint;
   /** Spent in the current period. */
   spent: bigint;
+  /**
+   * Unix timestamp (seconds) when the current spending window started on-chain,
+   * or `null` when nothing has been spent for this asset yet.
+   */
+  periodStart?: number | null;
+}
+
+async function readPeriodStart(contractId: string, asset: string): Promise<number | null> {
+  try {
+    const server = new rpc.Server(appConfig.rpcUrl, { allowHttp: appConfig.rpcUrl.startsWith("http://") });
+    const key = xdr.ScVal.scvVec([xdr.ScVal.scvSymbol("Spent"), new Address(asset).toScVal()]);
+    const entry = await server.getContractData(contractId, key, rpc.Durability.Persistent);
+    if (entry.val.type !== "contractData") return null;
+    const value = entry.val.contractData.val;
+    const decoded = scValToNative(value) as { start?: bigint | number } | null;
+    if (decoded && typeof decoded === "object" && decoded.start !== undefined) {
+      const start = Number(decoded.start);
+      return Number.isFinite(start) && start > 0 ? start : null;
+    }
+  } catch {
+    // No `Spent` ledger entry yet (nothing spent), or custom RPC unavailable.
+  }
+  return null;
 }
 
 export interface TreasuryData {
@@ -52,8 +77,12 @@ export function useTreasuryData(contractId: string | null): TreasuryDataState {
       const [config, assets] = await Promise.all([client.getConfig(), client.getPolicyAssets()]);
       const limits = await Promise.all(
         assets.map(async (asset): Promise<LimitView> => {
-          const [{ limit, period }, spent] = await Promise.all([client.getSpendLimit(asset), client.getSpent(asset)]);
-          return { asset, limit, period, spent };
+          const [{ limit, period }, spent, periodStart] = await Promise.all([
+            client.getSpendLimit(asset),
+            client.getSpent(asset),
+            readPeriodStart(contractId, asset),
+          ]);
+          return { asset, limit, period, spent, periodStart };
         }),
       );
       setOverview({ config, limits });

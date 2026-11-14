@@ -6,7 +6,7 @@ import type { Proposal } from "treasury-sdk";
 import { validateCreate } from "@/components/CreateTreasuryForm";
 import type { CreateValues } from "@/components/CreateTreasuryForm";
 import { OpenTreasuryForm } from "@/components/OpenTreasuryForm";
-import { ProposalForm } from "@/components/ProposalForm";
+import { ProposalForm, formatResetDate } from "@/components/ProposalForm";
 import { ProposalList } from "@/components/ProposalList";
 
 const alice = Keypair.random().publicKey();
@@ -158,6 +158,167 @@ describe("ProposalForm", () => {
     render(<ProposalForm assets={[]} canPropose onSubmit={async () => {}} />);
     expect(screen.getByText(/no spending limits/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /propose/i })).not.toBeInTheDocument();
+  });
+
+  describe("policy simulator", () => {
+    const NOW = 1_800_000_000;
+    const RESET_AT = NOW + 86_400;
+    const policyAsset = {
+      id: ASSET,
+      label: "XLM",
+      limit: 1_000_000_000n, // 100 XLM
+      spent: 300_000_000n, // 30 XLM spent
+      periodSeconds: 86_400n,
+      resetsAt: RESET_AT,
+    };
+    const approvedUnpaidProposal: Proposal = {
+      id: 1n,
+      proposer: alice,
+      asset: ASSET,
+      to: carol,
+      amount: 200_000_000n, // 20 XLM approved and waiting for execution
+      approvals: [alice, bob],
+      executed: false,
+      expiresAt: BigInt(NOW + 7 * 86_400),
+    };
+    const unapprovedOpenProposal: Proposal = {
+      id: 2n,
+      proposer: alice,
+      asset: ASSET,
+      to: carol,
+      amount: 150_000_000n, // only 1 of 2 approvals, does not count as approved yet
+      approvals: [alice],
+      executed: false,
+      expiresAt: BigInt(NOW + 7 * 86_400),
+    };
+
+    it("shows limit, spent, approved unpaid total, remaining, reset date, and fits verdict when under the limit", async () => {
+      render(
+        <ProposalForm
+          assets={[policyAsset]}
+          proposals={[approvedUnpaidProposal, unapprovedOpenProposal]}
+          threshold={2}
+          nowSeconds={NOW}
+          canPropose
+          onSubmit={async () => {}}
+        />,
+      );
+
+      // 100 limit - 30 spent - 20 approved unpaid = 50 XLM left.
+      expect(screen.getByText(/50 XLM left to spend/)).toBeInTheDocument();
+      expect(screen.getByText("30 XLM")).toBeInTheDocument();
+      expect(screen.getByText("20 XLM")).toBeInTheDocument();
+      expect(screen.getByText(formatResetDate(RESET_AT))).toBeInTheDocument();
+
+      await userEvent.type(screen.getByLabelText(/^amount/i), "15");
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Fits the spending limit: 35 XLM will remain after this payment.",
+      );
+    });
+
+    it("announces fits with 0 remaining when the amount is exactly at what is left", async () => {
+      render(
+        <ProposalForm
+          assets={[policyAsset]}
+          proposals={[approvedUnpaidProposal]}
+          threshold={2}
+          nowSeconds={NOW}
+          canPropose
+          onSubmit={async () => {}}
+        />,
+      );
+
+      await userEvent.type(screen.getByLabelText(/^amount/i), "50");
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Fits the spending limit: uses all 50 XLM available (0 XLM remaining).",
+      );
+    });
+
+    it("announces how much the draft is over what is left until the reset date", async () => {
+      render(
+        <ProposalForm
+          assets={[policyAsset]}
+          proposals={[approvedUnpaidProposal]}
+          threshold={2}
+          nowSeconds={NOW}
+          canPropose
+          onSubmit={async () => {}}
+        />,
+      );
+
+      await userEvent.type(screen.getByLabelText(/^amount/i), "62.5");
+      expect(screen.getByRole("status")).toHaveTextContent(
+        `This is 12.5 XLM over what is left until ${formatResetDate(RESET_AT)}.`,
+      );
+    });
+
+    it("treats a period that has already reset as having the full limit available again", async () => {
+      const alreadyResetAsset = {
+        id: ASSET,
+        label: "XLM",
+        limit: 1_000_000_000n, // 100 XLM
+        spent: 900_000_000n, // 90 XLM from a window that already ended
+        periodSeconds: 86_400n,
+        periodStart: NOW - 90_000, // ended 3,600 seconds ago
+      };
+      render(
+        <ProposalForm assets={[alreadyResetAsset]} nowSeconds={NOW} canPropose onSubmit={async () => {}} />,
+      );
+
+      expect(screen.getByText(/100 XLM left to spend/)).toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent(/Previous spending period has reset/i);
+
+      await userEvent.type(screen.getByLabelText(/^amount/i), "80");
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Fits the spending limit: 20 XLM will remain after this payment.",
+      );
+    });
+
+    it("announces when a selected asset has no spending limit and disables proposing", async () => {
+      const ASSET_NO_LIMIT = StrKey.encodeContract(Buffer.alloc(32, 9));
+      const onSubmit = vi.fn(async () => {});
+      render(
+        <ProposalForm
+          assets={[
+            { id: ASSET_NO_LIMIT, label: "USDC", limit: null },
+            policyAsset,
+          ]}
+          nowSeconds={NOW}
+          canPropose
+          onSubmit={onSubmit}
+        />,
+      );
+
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "USDC has no spending limit, so it cannot be spent.",
+      );
+      expect(screen.getByRole("button", { name: /propose payment/i })).toBeDisabled();
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    it("surfaces SDK preview fee or contract failure when onPreview is provided", async () => {
+      const onPreview = vi.fn(async () => ({ ok: true as const, fee: 54_100n }));
+      render(
+        <ProposalForm
+          assets={[policyAsset]}
+          nowSeconds={NOW}
+          canPropose
+          onPreview={onPreview}
+          onSubmit={async () => {}}
+        />,
+      );
+
+      await userEvent.type(screen.getByLabelText(/send to/i), bob);
+      await userEvent.type(screen.getByLabelText(/^amount/i), "10");
+
+      expect(await screen.findByText(/Estimated network fee: 0\.00541 XLM/)).toBeInTheDocument();
+      expect(onPreview).toHaveBeenCalledWith({
+        asset: ASSET,
+        to: bob,
+        amount: 100_000_000n,
+        ttlSeconds: 7 * 86400,
+      });
+    });
   });
 });
 

@@ -81,7 +81,6 @@ npm run build
 
 ## Not built yet
 
-- Policy simulator preview before proposing (`TODO(wave: app-1)`).
 - Batch payments by CSV upload.
 - Wallets other than Freighter.
 - Changing spending limits after creation.
