@@ -270,6 +270,56 @@ legend {
   margin: var(--space-1) 0 0;
 }
 
+/* Policy simulator inside the proposal form */
+.policy-simulator {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: calc(var(--radius) - 2px);
+  padding: var(--space-3);
+  margin: var(--space-2) 0 0;
+}
+
+.policy-breakdown {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--space-2) var(--space-3);
+  margin: 0 0 var(--space-2);
+}
+
+.policy-breakdown dt {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+.policy-breakdown dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.policy-verdict {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: calc(var(--radius) - 2px);
+  border: 1px solid var(--color-border);
+  font-weight: 600;
+}
+
+.policy-verdict-neutral {
+  background: var(--color-info-bg);
+}
+
+.policy-verdict-fits {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.policy-verdict-over {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  border-color: var(--color-warning);
+}
+
 /* Buttons */
 .button {
   font: inherit;

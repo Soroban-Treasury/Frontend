@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AuditLog } from "@/components/AuditLog";
 import { ProposalForm } from "@/components/ProposalForm";
-import type { ProposalInput } from "@/components/ProposalForm";
+import type { ProposalInput, SdkPreviewOutcome } from "@/components/ProposalForm";
 import { ProposalList } from "@/components/ProposalList";
 import { StatusMessage } from "@/components/StatusMessage";
 import { TreasuryOverview } from "@/components/TreasuryOverview";
@@ -44,6 +44,9 @@ export function TreasuryView() {
         id: l.asset,
         label: assetLabel(l.asset),
         limit: l.limit,
+        spent: l.spent,
+        periodSeconds: l.period,
+        periodStart: l.periodStart ?? null,
         remaining: l.limit > l.spent ? l.limit - l.spent : 0n,
       })),
     [data],
@@ -77,6 +80,22 @@ export function TreasuryView() {
     await makeClient(id, signer).propose(input);
     setNotice(null);
     await reload();
+  }
+
+  async function previewProposal(input: ProposalInput): Promise<SdkPreviewOutcome | null> {
+    const client = makeClient(id, signer ?? undefined) as unknown as {
+      preview?: {
+        propose?: (
+          params: ProposalInput,
+          opts?: { caller?: string },
+        ) => Promise<{ ok: true; fee: bigint } | { ok: false; error: Error }>;
+      };
+    };
+    if (!client.preview?.propose) return null;
+    const caller = signer?.publicKey ?? address ?? owners[0];
+    if (!caller) return null;
+    const res = await client.preview.propose(input, { caller });
+    return res.ok ? { ok: true, fee: res.fee } : { ok: false, message: res.error.message };
   }
 
   async function act(proposalId: bigint, kind: "approve" | "execute") {
@@ -135,6 +154,10 @@ export function TreasuryView() {
           <ProposalForm
             assets={assets}
             canPropose={isOwner && !networkProblem}
+            proposals={data.proposals}
+            threshold={threshold}
+            nowSeconds={now}
+            onPreview={previewProposal}
             reason={
               !address
                 ? "Connect your wallet to propose a payment."
